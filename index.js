@@ -257,7 +257,7 @@ io.on(
         socket.join(normalizedRoom);
 
         try {
-          const messages = await Message.find({ room: normalizedRoom }).sort({ createdAt: 1 });
+          const messages = await Message.find({ room: normalizedRoom, deletedBy: { $ne: normalizedName } }).sort({ createdAt: 1 });
           
           io.to(normalizedRoom).emit(
             'onlineUsers',
@@ -362,12 +362,48 @@ io.on(
         messageId
       }) => {
         try {
-          console.warn('deleteMessage blocked: message deletion is disabled to preserve chat history.');
+          const normalizedRoom = normalizeRoom(room);
+          const normalizedName = normalizeName(socket.id && socket.id.toString() ? (socket.id) : '');
+          // Expect client to send current user's name as 'requester'
+          // We'll accept it from payload to mark deletion for that user only
+          // Fallback to socket stored user list
+          // Find the user's display name from our users array
+          const userObj = users.find(u => u.id === socket.id);
+          const requester = userObj ? userObj.name : null;
+
+          if (!normalizedRoom || !messageId || !requester) {
+            return;
+          }
+
+          await Message.findByIdAndUpdate(messageId, { $addToSet: { deletedBy: requester } });
+
+          const updatedMessages = await Message.find({ room: normalizedRoom, deletedBy: { $ne: requester } }).sort({ createdAt: 1 });
+
+          // Send updated message list only to the requester so deletion is local to that user
+          socket.emit('messagesUpdated', updatedMessages);
         } catch (error) {
           console.error('Error deleting message:', error);
         }
       }
     );
+
+    // Clear chat history for this user in a room (mark all messages deleted for the requesting user)
+    socket.on('clearChatForUser', async ({ room }) => {
+      try {
+        const normalizedRoom = normalizeRoom(room);
+        const userObj = users.find(u => u.id === socket.id);
+        const requester = userObj ? userObj.name : null;
+
+        if (!normalizedRoom || !requester) return;
+
+        await Message.updateMany({ room: normalizedRoom }, { $addToSet: { deletedBy: requester } });
+
+        // Return empty list to requester
+        socket.emit('messagesUpdated', []);
+      } catch (err) {
+        console.error('Error clearing chat for user:', err);
+      }
+    });
 
     /*
     =====================

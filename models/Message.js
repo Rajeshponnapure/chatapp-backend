@@ -45,6 +45,11 @@ const MessageSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  // Track which users have deleted this message for themselves
+  deletedBy: {
+    type: [String],
+    default: [],
+  },
   createdAt: {
     type: Date,
     default: Date.now,
@@ -61,4 +66,4 @@ MessageSchema.set('toJSON', {
   virtuals: true,
 });
 
-module.exports = mongoose.model('Message', MessageSchema);
+module.exports = mongoose.model('Message', MessageSchema);
