@@ -116,3 +116,29 @@ The frontend still needs the backend URL used by Socket.io and uploads. If you m
 - If messages disappear after some time, check Atlas for TTL indexes on the `messages` collection.
 - If uploads fail, make sure the `uploads/` folder exists and is writable.
 - If port 5000 is busy, change `PORT` in `.env`.
+
+## 11. Deploying On Render
+
+If you deploy this backend to Render, use these values:
+
+- **Build Command:** `npm install`
+- **Start Command:** `npm start`
+
+If Render still shows `Missing script: start`, it usually means the service is not pointing at the `server` folder. Fix it by setting:
+
+- **Root Directory:** `server`
+
+If you cannot set a root directory, use these fallback commands instead:
+
+- **Build Command:** `cd server && npm install`
+- **Start Command:** `cd server && npm start`
+
+Add these environment variables in the Render dashboard:
+
+- `MONGO_URI` = your MongoDB Atlas or local MongoDB connection string
+- `PORT` = `10000` or leave it unset and let Render provide the port
+
+Important notes:
+- Render should point to the `server` folder as the root directory for this service.
+- Keep `.env`, `node_modules/`, and `uploads/` out of GitHub.
+- The server must be restarted after changing MongoDB settings.
